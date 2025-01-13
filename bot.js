@@ -147,9 +147,9 @@ bot.on("callback_query:data", async (ctx) => {
     const data = ctx.callbackQuery.data;
     
     if (data.startsWith("regenerate_")) {
-        const filename = data.split("_")[1];
+        const filename = data.split("_").slice(1).join('_');
         const history = userHistory.get(userId);
-        const entry = history.find(e => e.filename === filename);
+        const entry = history.find(e => path.basename(e.filename) === filename);
         
         if (entry) {
             await ctx.answerCallbackQuery("Regenerating image...");
@@ -249,8 +249,8 @@ async function handleImageGeneration(ctx, prompt) {
 
         // Create inline keyboard with just regenerate and save
         const inlineKeyboard = new InlineKeyboard()
-            .text("🔄 Regenerate", `regenerate_${filename}`)
-            .text("📥 Save", `save_${filename}`);
+            .text("🔄 Regenerate", `regenerate_${path.basename(filename)}`)
+            .text("📥 Save", `save_${path.basename(filename)}`);
 
         // Send the image to user
         await ctx.replyWithPhoto(new InputFile(outputPath), {
