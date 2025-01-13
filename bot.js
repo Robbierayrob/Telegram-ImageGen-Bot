@@ -75,7 +75,7 @@ bot.on("message:text", async (ctx) => {
             
             if (!prompt) {
                 log(`Empty prompt from user ${ctx.from.id}`);
-                return await ctx.reply("Please provide a prompt after /generate");
+                return await ctx.reply("Please type something after /generate to describe the image you want to create.\nExample: /generate a futuristic cityscape at sunset");
             }
             
             log(`Starting image generation for user ${ctx.from.id} with prompt: ${prompt}`);
@@ -106,9 +106,9 @@ bot.on("message:text", async (ctx) => {
             console.error(error.stack);
             await ctx.reply("Oops! Something went wrong while generating the image.");
         }
-    } else {
-        // Default echo response
-        await ctx.reply("Echo: " + ctx.message.text);
+    } else if (authenticatedUsers.has(userId)) {
+        // If authenticated but not using a command
+        await ctx.reply("Please use the /generate command followed by your image description.\nExample: /generate a cute puppy playing in the grass");
     }
 });
 
