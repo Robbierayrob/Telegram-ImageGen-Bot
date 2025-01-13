@@ -12,28 +12,17 @@ const replicate = new Replicate({
 // Create a bot object
 const bot = new Bot("7725251083:AAEvgb5ND4-ToeRbfjWusByGD4xtrP1c5fQ");
 
+// Generate unique filename with timestamp and user ID
+function generateFilename(userId) {
+    const timestamp = Date.now();
+    return `generated_${userId}_${timestamp}.webp`;
+}
+
 // Handle text messages
 bot.on("message:text", async (ctx) => {
-    const text = ctx.message.text.toLowerCase();
+    const text = ctx.message.text;
     
-    if (text.includes("koala")) {
-        try {
-            const imagePath = path.join(__dirname, "images", "koala.jpeg");
-            
-            // Check if file exists
-            if (!fs.existsSync(imagePath)) {
-                console.error("Image file not found at:", imagePath);
-                return await ctx.reply("Sorry, I couldn't find the koala image.");
-            }
-            
-            // Send the image using InputFile
-            await ctx.replyWithPhoto(new InputFile(imagePath));
-            await ctx.reply("Here's a cute koala for you!");
-        } catch (error) {
-            console.error("Error sending image:", error);
-            await ctx.reply("Oops! Something went wrong while sending the image.");
-        }
-    } else if (text.startsWith("/generate")) {
+    if (text.startsWith("/generate")) {
         try {
             // Extract prompt from message
             const prompt = text.replace("/generate", "").trim();
@@ -50,15 +39,16 @@ bot.on("message:text", async (ctx) => {
                 }
             });
 
-            // Save and send the first output image
-            const outputPath = path.join(__dirname, "images", "generated.webp");
+            // Generate unique filename
+            const filename = generateFilename(ctx.from.id);
+            const outputPath = path.join(__dirname, "images", filename);
+            
+            // Save the image permanently
             await writeFile(outputPath, output[0]);
             
+            // Send the image to user
             await ctx.replyWithPhoto(new InputFile(outputPath));
-            await ctx.reply("Here's your generated image!");
-            
-            // Clean up
-            fs.unlinkSync(outputPath);
+            await ctx.reply("Here's your generated image! It's been saved as: " + filename);
         } catch (error) {
             console.error("Error generating image:", error);
             await ctx.reply("Oops! Something went wrong while generating the image.");
