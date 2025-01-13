@@ -164,9 +164,9 @@ bot.on("callback_query:data", async (ctx) => {
             await ctx.answerCallbackQuery("Couldn't find image to regenerate");
         }
     }
-    else if (data.startsWith("save_")) {
+    else if (data.startsWith("image_")) {
         const filename = data.split("_").slice(1).join('_');
-        log(`Save button clicked for filename: ${filename} by user ${userId}`);
+        log(`Share button clicked for filename: ${filename} by user ${userId}`);
         
         const history = userHistory.get(userId);
         if (!history) {
@@ -178,20 +178,16 @@ bot.on("callback_query:data", async (ctx) => {
         if (!entry) {
             log(`Could not find image entry for filename: ${filename}`);
             log(`User history entries: ${history.map(e => path.basename(e.filename)).join(', ')}`);
-            return await ctx.answerCallbackQuery("Couldn't find image to save");
+            return await ctx.answerCallbackQuery("Couldn't find image to share");
         }
 
         try {
-            log(`Attempting to send image from path: ${entry.path}`);
-            await ctx.replyWithPhoto(new InputFile(entry.path), {
-                caption: "Here's your saved image!"
-            });
-            await ctx.answerCallbackQuery("Image sent to your chat!");
-            log(`Image successfully sent to user ${userId}`);
+            log(`Attempting to share image from path: ${entry.path}`);
+            await ctx.answerCallbackQuery("Use the share button to forward this image");
         } catch (error) {
-            log(`Error sending saved image to user ${userId}: ${error.message}`);
+            log(`Error sharing image for user ${userId}: ${error.message}`);
             console.error(error.stack);
-            await ctx.answerCallbackQuery("Failed to send image");
+            await ctx.answerCallbackQuery("Failed to share image");
         }
     }
 });
@@ -258,12 +254,12 @@ async function handleImageGeneration(ctx, prompt) {
         }
         userHistory.get(userId).push(historyEntry);
 
-        // Create inline keyboard with just regenerate and save
+        // Create inline keyboard with regenerate and share
         const basename = path.basename(filename);
         log(`Creating buttons for filename: ${basename}`);
         const inlineKeyboard = new InlineKeyboard()
             .text("🔄 Regenerate", `regenerate_${basename}`)
-            .text("📥 Save", `save_${basename}`);
+            .switchInline("📤 Share", `image_${basename}`);
 
         // Send the image to user
         await ctx.replyWithPhoto(new InputFile(outputPath), {
