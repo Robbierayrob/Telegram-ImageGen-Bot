@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { Bot, InputFile } = require("grammy");
 const path = require("path");
 const fs = require('fs');
@@ -6,7 +7,7 @@ const { writeFile } = require("node:fs/promises");
 
 // Initialize Replicate client
 const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN
+  auth: process.env.REPLICATE_API_TOKEN || 'r8_dQX6s0D0gqUHdBEwD4WAEzmvHuoknl74dYe4U'
 });
 
 // Create a bot object
