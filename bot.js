@@ -82,15 +82,15 @@ bot.on("message:text", async (ctx) => {
         return await ctx.reply("Incorrect password. Please try again.");
     }
     
-    if (text.startsWith("/generate")) {
-        log(`Generate command received from user ${ctx.from.id}`);
+    if (text.startsWith("/image")) {
+        log(`Image command received from user ${ctx.from.id}`);
         try {
             // Extract prompt from message
             const prompt = text.replace("/generate", "").trim();
             
             if (!prompt) {
                 log(`Empty prompt from user ${ctx.from.id}`);
-                return await ctx.reply("Please type something after /generate to describe the image you want to create.\nExample: /generate a futuristic cityscape at sunset");
+                return await ctx.reply("Please type something after /image to describe the image you want to create.\nExample: /image a futuristic cityscape at sunset");
             }
             
             log(`Starting image generation for user ${ctx.from.id} with prompt: ${prompt}`);
@@ -132,7 +132,7 @@ bot.on("message:text", async (ctx) => {
         }
     } else if (authenticatedUsers.has(userId)) {
         // If authenticated but not using a command
-        await ctx.reply("Please use the /generate command followed by your image description.\nExample: /generate a cute puppy playing in the grass");
+        await ctx.reply("Please use the /image command followed by your image description.\nExample: /image a cute puppy playing in the grass");
     }
 });
 
