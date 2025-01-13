@@ -7,7 +7,7 @@ const { writeFile } = require("node:fs/promises");
 
 // Initialize Replicate client
 const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN || 'r8_dQX6s0D0gqUHdBEwD4WAEzmvHuoknl74dYe4U'
+  auth: process.env.REPLICATE_API_TOKEN
 });
 
 // Create a bot object
