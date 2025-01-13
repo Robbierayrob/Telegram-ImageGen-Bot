@@ -165,17 +165,22 @@ bot.on("callback_query:data", async (ctx) => {
         }
     }
     else if (data.startsWith("save_")) {
-        await ctx.answerCallbackQuery("Image saved to your history!");
-    }
-    else if (data === "show_history") {
+        const filename = data.split("_")[1];
         const history = userHistory.get(userId);
-        if (history && history.length > 0) {
-            const historyText = history.map((entry, i) => 
-                `${i + 1}. ${entry.prompt}\n📅 ${entry.timestamp.toLocaleString()}`
-            ).join("\n\n");
-            await ctx.reply(`Your image history:\n\n${historyText}`);
+        const entry = history.find(e => e.filename === filename);
+        
+        if (entry) {
+            try {
+                await ctx.replyWithPhoto(new InputFile(entry.path), {
+                    caption: "Here's your saved image!"
+                });
+                await ctx.answerCallbackQuery("Image sent to your chat!");
+            } catch (error) {
+                await ctx.answerCallbackQuery("Failed to send image");
+                log(`Error sending saved image to user ${userId}: ${error.message}`);
+            }
         } else {
-            await ctx.reply("You haven't generated any images yet!");
+            await ctx.answerCallbackQuery("Couldn't find image to save");
         }
     }
 });
@@ -242,12 +247,10 @@ async function handleImageGeneration(ctx, prompt) {
         }
         userHistory.get(userId).push(historyEntry);
 
-        // Create inline keyboard
+        // Create inline keyboard with just regenerate and save
         const inlineKeyboard = new InlineKeyboard()
             .text("🔄 Regenerate", `regenerate_${filename}`)
-            .text("📥 Save", `save_${filename}`)
-            .row()
-            .text("📜 History", "show_history");
+            .text("📥 Save", `save_${filename}`);
 
         // Send the image to user
         await ctx.replyWithPhoto(new InputFile(outputPath), {
