@@ -37,10 +37,25 @@ bot.command("start", async (ctx) => {
     });
 });
 
-// Generate unique filename with timestamp and user ID
-function generateFilename(userId) {
-    const timestamp = Date.now();
-    return `generated_${userId}_${timestamp}.webp`;
+// Track image count for unique IDs
+let imageCount = 0;
+
+// Generate unique filename with ID, username, and date/time
+function generateFilename(userId, username) {
+    // Increment and format image ID
+    const imageId = String(++imageCount).padStart(4, '0');
+    
+    // Get current date/time and format it for filename
+    const now = new Date();
+    const formattedDate = now.toISOString()
+        .replace(/T/, '_')  // Replace T with underscore
+        .replace(/\..+/, '') // Remove milliseconds
+        .replace(/:/g, '-'); // Replace colons with dashes
+    
+    // Clean username for filename (remove special chars)
+    const cleanUsername = (username || 'user').replace(/[^a-zA-Z0-9_-]/g, '');
+    
+    return `${imageId}_${cleanUsername}_${formattedDate}.webp`;
 }
 
 // Handle text messages
@@ -89,8 +104,9 @@ bot.on("message:text", async (ctx) => {
                 }
             });
 
-            // Generate unique filename
-            const filename = generateFilename(ctx.from.id);
+            // Generate unique filename with username
+            const username = ctx.from.username || ctx.from.first_name || 'user';
+            const filename = generateFilename(ctx.from.id, username);
             const outputPath = path.join(__dirname, "images", filename);
             
             // Save the image permanently
