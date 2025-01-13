@@ -1,6 +1,5 @@
 require('dotenv').config();
-const { Bot, InputFile } = require("grammy");
-const { Session } = require("@grammyjs/session");
+const { Bot, InputFile, Keyboard } = require("grammy");
 
 // Helper function for formatted logging
 function log(message) {
@@ -17,16 +16,25 @@ const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN
 });
 
-// Create a bot object with session middleware
+// Store authenticated users in memory
+const authenticatedUsers = new Set();
+
+// Create a bot object
 const bot = new Bot("7725251083:AAEvgb5ND4-ToeRbfjWusByGD4xtrP1c5fQ");
-bot.use(new Session({ initial: () => ({ authenticated: false }) }));
 log("Bot initialized successfully");
+
+// Create login keyboard
+const loginKeyboard = new Keyboard()
+    .text("Login")
+    .resized();
 
 // Handle /start command
 bot.command("start", async (ctx) => {
     const userId = ctx.from.id;
     log(`/start command from user ${userId}`);
-    await ctx.reply("Welcome! Please send the password to authenticate.");
+    await ctx.reply("Welcome! Please press the Login button to authenticate.", {
+        reply_markup: loginKeyboard
+    });
 });
 
 // Generate unique filename with timestamp and user ID
@@ -42,15 +50,21 @@ bot.on("message:text", async (ctx) => {
     
     log(`Received message from user ${userId}: ${text}`);
     
-    // Check if user is authenticated
-    if (!ctx.session.authenticated) {
+    // Handle login
+    if (text === "Login") {
+        await ctx.reply("Please enter the password:");
+        return;
+    }
+
+    // Check if user is trying to authenticate
+    if (!authenticatedUsers.has(userId)) {
         if (text === process.env.BOT_PASSWORD) {
-            ctx.session.authenticated = true;
+            authenticatedUsers.add(userId);
             log(`User ${userId} authenticated successfully`);
             return await ctx.reply("Authentication successful! You can now use /generate");
         }
         log(`Unauthenticated access attempt from user ${userId}`);
-        return await ctx.reply("Please authenticate first by sending the correct password.");
+        return await ctx.reply("Incorrect password. Please try again.");
     }
     
     if (text.startsWith("/generate")) {
@@ -100,9 +114,16 @@ bot.on("message:text", async (ctx) => {
 
 // Add /logout command
 bot.command("logout", async (ctx) => {
-    ctx.session.authenticated = false;
-    log(`User ${ctx.from.id} logged out`);
-    await ctx.reply("Logged out successfully. Send the password to authenticate again.");
+    const userId = ctx.from.id;
+    if (authenticatedUsers.has(userId)) {
+        authenticatedUsers.delete(userId);
+        log(`User ${userId} logged out`);
+        await ctx.reply("Logged out successfully. Press Login to authenticate again.", {
+            reply_markup: loginKeyboard
+        });
+    } else {
+        await ctx.reply("You're not logged in.");
+    }
 });
 
 // Start the bot
