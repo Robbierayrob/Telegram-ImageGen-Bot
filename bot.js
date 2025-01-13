@@ -179,8 +179,15 @@ bot.on("callback_query:data", async (ctx) => {
         
         if (entry) {
             await ctx.answerCallbackQuery("Regenerating image...");
-            await ctx.reply("Regenerating your image...");
-            await handleImageGeneration(ctx, entry.prompt);
+            await ctx.reply(`Regenerating your image with prompt: "${entry.prompt}"...`);
+            try {
+                await handleImageGeneration(ctx, entry.prompt);
+            } catch (error) {
+                await ctx.reply("Failed to regenerate image. Please try again.");
+                log(`Error regenerating image for user ${userId}: ${error.message}`);
+            }
+        } else {
+            await ctx.answerCallbackQuery("Couldn't find image to regenerate");
         }
     }
     else if (data.startsWith("save_")) {
