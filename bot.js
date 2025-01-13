@@ -165,22 +165,33 @@ bot.on("callback_query:data", async (ctx) => {
         }
     }
     else if (data.startsWith("save_")) {
-        const filename = data.split("_")[1];
-        const history = userHistory.get(userId);
-        const entry = history.find(e => e.filename === filename);
+        const filename = data.split("_").slice(1).join('_');
+        log(`Save button clicked for filename: ${filename} by user ${userId}`);
         
-        if (entry) {
-            try {
-                await ctx.replyWithPhoto(new InputFile(entry.path), {
-                    caption: "Here's your saved image!"
-                });
-                await ctx.answerCallbackQuery("Image sent to your chat!");
-            } catch (error) {
-                await ctx.answerCallbackQuery("Failed to send image");
-                log(`Error sending saved image to user ${userId}: ${error.message}`);
-            }
-        } else {
-            await ctx.answerCallbackQuery("Couldn't find image to save");
+        const history = userHistory.get(userId);
+        if (!history) {
+            log(`No history found for user ${userId}`);
+            return await ctx.answerCallbackQuery("No image history found");
+        }
+
+        const entry = history.find(e => path.basename(e.filename) === filename);
+        if (!entry) {
+            log(`Could not find image entry for filename: ${filename}`);
+            log(`User history entries: ${history.map(e => path.basename(e.filename)).join(', ')}`);
+            return await ctx.answerCallbackQuery("Couldn't find image to save");
+        }
+
+        try {
+            log(`Attempting to send image from path: ${entry.path}`);
+            await ctx.replyWithPhoto(new InputFile(entry.path), {
+                caption: "Here's your saved image!"
+            });
+            await ctx.answerCallbackQuery("Image sent to your chat!");
+            log(`Image successfully sent to user ${userId}`);
+        } catch (error) {
+            log(`Error sending saved image to user ${userId}: ${error.message}`);
+            console.error(error.stack);
+            await ctx.answerCallbackQuery("Failed to send image");
         }
     }
 });
@@ -248,9 +259,11 @@ async function handleImageGeneration(ctx, prompt) {
         userHistory.get(userId).push(historyEntry);
 
         // Create inline keyboard with just regenerate and save
+        const basename = path.basename(filename);
+        log(`Creating buttons for filename: ${basename}`);
         const inlineKeyboard = new InlineKeyboard()
-            .text("🔄 Regenerate", `regenerate_${path.basename(filename)}`)
-            .text("📥 Save", `save_${path.basename(filename)}`);
+            .text("🔄 Regenerate", `regenerate_${basename}`)
+            .text("📥 Save", `save_${basename}`);
 
         // Send the image to user
         await ctx.replyWithPhoto(new InputFile(outputPath), {
