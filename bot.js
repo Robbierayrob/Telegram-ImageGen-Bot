@@ -1,5 +1,8 @@
 require('dotenv').config();
-const { Bot, InputFile, Keyboard } = require("grammy");
+const { Bot, InputFile, Keyboard, InlineKeyboard } = require("grammy");
+const { limit } = require("@grammyjs/ratelimiter");
+const crypto = require('crypto');
+const userHistory = new Map();
 
 // Helper function for formatted logging
 function log(message) {
@@ -21,6 +24,19 @@ const authenticatedUsers = new Set();
 
 // Create a bot object
 const bot = new Bot("7725251083:AAEvgb5ND4-ToeRbfjWusByGD4xtrP1c5fQ");
+
+// Add rate limiting
+bot.use(limit({
+    timeFrame: 2000, // 2 seconds
+    limit: 1
+}));
+
+// Add error handling
+bot.catch((err) => {
+    console.error(`Error in bot:`, err);
+    ctx.reply("An error occurred. Please try again later.");
+});
+
 log("Bot initialized successfully");
 
 // Create login keyboard
@@ -58,6 +74,26 @@ function generateFilename(userId, username) {
     return `${imageId}_${cleanUsername}_${formattedDate}.webp`;
 }
 
+// Handle photo messages for editing
+bot.on(":photo", async (ctx) => {
+    const userId = ctx.from.id;
+    if (!authenticatedUsers.has(userId)) {
+        return await ctx.reply("Please authenticate first.");
+    }
+    
+    try {
+        const photo = ctx.message.photo[ctx.message.photo.length - 1];
+        const file = await ctx.getFile();
+        const filePath = `images/edit_${Date.now()}.jpg`;
+        await file.download(filePath);
+        
+        await ctx.reply("What modifications would you like to make to this image?");
+    } catch (error) {
+        log(`Error handling photo edit: ${error.message}`);
+        await ctx.reply("Sorry, I couldn't process that image.");
+    }
+});
+
 // Handle text messages
 bot.on("message:text", async (ctx) => {
     const text = ctx.message.text;
@@ -92,37 +128,33 @@ bot.on("message:text", async (ctx) => {
                 return await ctx.reply("Please type a description of the image you want to create.\nExample: a futuristic cityscape at sunset");
             }
             
-            log(`Starting image generation for user ${ctx.from.id} with prompt: ${prompt}`);
+            await handleImageGeneration(ctx, prompt);
+            
+            // Store in history
+            const historyEntry = {
+                prompt,
+                filename,
+                path: outputPath,
+                timestamp: new Date()
+            };
+            if (!userHistory.has(userId)) {
+                userHistory.set(userId, []);
+            }
+            userHistory.get(userId).push(historyEntry);
 
-            // Generate image
-            await ctx.reply("Generating your image...");
-            log(`Request sent to Replicate API for user ${ctx.from.id}`);
-            const output = await replicate.run("black-forest-labs/flux-schnell", {
-                input: {
-                    prompt: prompt
-                }
-            });
+            // Create inline keyboard
+            const inlineKeyboard = new InlineKeyboard()
+                .text("🔄 Regenerate", `regenerate_${filename}`)
+                .text("📥 Save", `save_${filename}`)
+                .row()
+                .text("📜 History", "show_history");
 
-            // Generate unique filename with username
-            const username = ctx.from.username || ctx.from.first_name || 'user';
-            const filename = generateFilename(ctx.from.id, username);
-            const outputPath = path.join(__dirname, "images", filename);
-            
-            // Save the image permanently
-            await writeFile(outputPath, output[0]);
-            log(`Image saved successfully for user ${ctx.from.id} at ${outputPath}`);
-            
-            // Get current date/time and format it
-            const now = new Date();
-            const formattedDate = now.toLocaleString('en-AU', {
-                timeZone: 'Australia/Sydney',
-                dateStyle: 'medium',
-                timeStyle: 'short'
+            // Send the image to user with feedback
+            await ctx.api.sendChatAction(ctx.chat.id, "upload_photo");
+            await ctx.replyWithPhoto(new InputFile(outputPath), {
+                caption: `Here's your generated image, ${username}! (${formattedDate})\nSaved as: ${filename}`,
+                reply_markup: inlineKeyboard
             });
-            
-            // Send the image to user
-            await ctx.replyWithPhoto(new InputFile(outputPath));
-            await ctx.reply(`Here's your generated image, ${username}! (${formattedDate})\nSaved as: ${filename}`);
             log(`Image sent successfully to user ${ctx.from.id} (${username})`);
         } catch (error) {
             log(`Error generating image for user ${ctx.from.id}: ${error.message}`);
@@ -132,6 +164,38 @@ bot.on("message:text", async (ctx) => {
     } else if (authenticatedUsers.has(userId)) {
         // If authenticated but not using a command
         await ctx.reply("Type a description of the image you want to create.\nExample: a cute puppy playing in the grass");
+    }
+});
+
+// Handle inline button actions
+bot.on("callback_query:data", async (ctx) => {
+    const userId = ctx.from.id;
+    const data = ctx.callbackQuery.data;
+    
+    if (data.startsWith("regenerate_")) {
+        const filename = data.split("_")[1];
+        const history = userHistory.get(userId);
+        const entry = history.find(e => e.filename === filename);
+        
+        if (entry) {
+            await ctx.answerCallbackQuery("Regenerating image...");
+            await ctx.reply("Regenerating your image...");
+            await handleImageGeneration(ctx, entry.prompt);
+        }
+    }
+    else if (data.startsWith("save_")) {
+        await ctx.answerCallbackQuery("Image saved to your history!");
+    }
+    else if (data === "show_history") {
+        const history = userHistory.get(userId);
+        if (history && history.length > 0) {
+            const historyText = history.map((entry, i) => 
+                `${i + 1}. ${entry.prompt}\n📅 ${entry.timestamp.toLocaleString()}`
+            ).join("\n\n");
+            await ctx.reply(`Your image history:\n\n${historyText}`);
+        } else {
+            await ctx.reply("You haven't generated any images yet!");
+        }
     }
 });
 
@@ -148,6 +212,75 @@ bot.command("logout", async (ctx) => {
         await ctx.reply("You're not logged in.");
     }
 });
+
+// Handle image generation logic
+async function handleImageGeneration(ctx, prompt) {
+    const userId = ctx.from.id;
+    const username = ctx.from.username || ctx.from.first_name || 'user';
+    
+    log(`Starting image generation for user ${userId} with prompt: ${prompt}`);
+    
+    // Show typing indicator
+    await ctx.api.sendChatAction(ctx.chat.id, "upload_photo");
+    await ctx.reply("Generating your image...");
+    
+    try {
+        // Generate image
+        log(`Request sent to Replicate API for user ${userId}`);
+        const output = await replicate.run("black-forest-labs/flux-schnell", {
+            input: {
+                prompt: prompt
+            }
+        });
+
+        // Generate unique filename
+        const filename = generateFilename(userId, username);
+        const outputPath = path.join(__dirname, "images", filename);
+        
+        // Save the image permanently
+        await writeFile(outputPath, output[0]);
+        log(`Image saved successfully for user ${userId} at ${outputPath}`);
+        
+        // Get current date/time and format it
+        const now = new Date();
+        const formattedDate = now.toLocaleString('en-AU', {
+            timeZone: 'Australia/Sydney',
+            dateStyle: 'medium',
+            timeStyle: 'short'
+        });
+
+        // Store in history
+        const historyEntry = {
+            prompt,
+            filename,
+            path: outputPath,
+            timestamp: new Date()
+        };
+        if (!userHistory.has(userId)) {
+            userHistory.set(userId, []);
+        }
+        userHistory.get(userId).push(historyEntry);
+
+        // Create inline keyboard
+        const inlineKeyboard = new InlineKeyboard()
+            .text("🔄 Regenerate", `regenerate_${filename}`)
+            .text("📥 Save", `save_${filename}`)
+            .row()
+            .text("📜 History", "show_history");
+
+        // Send the image to user
+        await ctx.replyWithPhoto(new InputFile(outputPath), {
+            caption: `Here's your generated image, ${username}! (${formattedDate})\nSaved as: ${filename}`,
+            reply_markup: inlineKeyboard
+        });
+        log(`Image sent successfully to user ${userId} (${username})`);
+    } catch (error) {
+        log(`Error generating image for user ${userId}: ${error.message}`);
+        console.error(error.stack);
+        await ctx.reply("Oops! Something went wrong while generating the image.");
+        throw error;
+    }
+}
 
 // Start the bot
 bot.start();
