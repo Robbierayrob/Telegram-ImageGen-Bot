@@ -121,9 +121,6 @@ bot.on("message:text", async (ctx) => {
                 timeStyle: 'short'
             });
             
-            // Get username or fallback to "user"
-            const username = ctx.from.username || ctx.from.first_name || 'user';
-            
             // Send the image to user
             await ctx.replyWithPhoto(new InputFile(outputPath));
             await ctx.reply(`Here's your generated image, ${username}! (${formattedDate})\nSaved as: ${filename}`);
