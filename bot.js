@@ -128,34 +128,8 @@ bot.on("message:text", async (ctx) => {
                 return await ctx.reply("Please type a description of the image you want to create.\nExample: a futuristic cityscape at sunset");
             }
             
+            // Just call handleImageGeneration - it will handle everything
             await handleImageGeneration(ctx, prompt);
-            
-            // Store in history
-            const historyEntry = {
-                prompt,
-                filename,
-                path: outputPath,
-                timestamp: new Date()
-            };
-            if (!userHistory.has(userId)) {
-                userHistory.set(userId, []);
-            }
-            userHistory.get(userId).push(historyEntry);
-
-            // Create inline keyboard
-            const inlineKeyboard = new InlineKeyboard()
-                .text("🔄 Regenerate", `regenerate_${filename}`)
-                .text("📥 Save", `save_${filename}`)
-                .row()
-                .text("📜 History", "show_history");
-
-            // Send the image to user with feedback
-            await ctx.api.sendChatAction(ctx.chat.id, "upload_photo");
-            await ctx.replyWithPhoto(new InputFile(outputPath), {
-                caption: `Here's your generated image, ${username}! (${formattedDate})\nSaved as: ${filename}`,
-                reply_markup: inlineKeyboard
-            });
-            log(`Image sent successfully to user ${ctx.from.id} (${username})`);
         } catch (error) {
             log(`Error generating image for user ${ctx.from.id}: ${error.message}`);
             console.error(error.stack);
