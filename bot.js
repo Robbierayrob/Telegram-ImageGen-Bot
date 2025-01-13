@@ -76,21 +76,20 @@ bot.on("message:text", async (ctx) => {
         if (text === process.env.BOT_PASSWORD) {
             authenticatedUsers.add(userId);
             log(`User ${userId} authenticated successfully`);
-            return await ctx.reply("Authentication successful! You can now use /image");
+            return await ctx.reply("Authentication successful! Just type what you want to see and I'll generate it.");
         }
         log(`Unauthenticated access attempt from user ${userId}`);
         return await ctx.reply("Incorrect password. Please try again.");
     }
     
-    if (text.startsWith("/image")) {
-        log(`Image command received from user ${ctx.from.id}`);
+    if (authenticatedUsers.has(userId)) {
         try {
-            // Extract prompt from message
-            const prompt = text.replace("/image", "").trim();
+            // Use the entire message as prompt
+            const prompt = text.trim();
             
             if (!prompt) {
                 log(`Empty prompt from user ${ctx.from.id}`);
-                return await ctx.reply("Please type something after /image to describe the image you want to create.\nExample: /image a futuristic cityscape at sunset");
+                return await ctx.reply("Please type a description of the image you want to create.\nExample: a futuristic cityscape at sunset");
             }
             
             log(`Starting image generation for user ${ctx.from.id} with prompt: ${prompt}`);
@@ -132,7 +131,7 @@ bot.on("message:text", async (ctx) => {
         }
     } else if (authenticatedUsers.has(userId)) {
         // If authenticated but not using a command
-        await ctx.reply("Please use the /image command followed by your image description.\nExample: /image a cute puppy playing in the grass");
+        await ctx.reply("Type a description of the image you want to create.\nExample: a cute puppy playing in the grass");
     }
 });
 
