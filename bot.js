@@ -1,4 +1,4 @@
-const { Bot } = require("grammy");
+const { Bot, InputFile } = require("grammy");
 const path = require("path");
 const fs = require('fs');
 
@@ -19,8 +19,8 @@ bot.on("message:text", async (ctx) => {
                 return await ctx.reply("Sorry, I couldn't find the koala image.");
             }
             
-            // Send the image
-            await ctx.replyWithPhoto({ source: fs.readFileSync(imagePath) });
+            // Send the image using InputFile
+            await ctx.replyWithPhoto(new InputFile(imagePath));
             await ctx.reply("Here's a cute koala for you!");
         } catch (error) {
             console.error("Error sending image:", error);
