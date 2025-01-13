@@ -76,7 +76,7 @@ bot.on("message:text", async (ctx) => {
         if (text === process.env.BOT_PASSWORD) {
             authenticatedUsers.add(userId);
             log(`User ${userId} authenticated successfully`);
-            return await ctx.reply("Authentication successful! You can now use /generate");
+            return await ctx.reply("Authentication successful! You can now use /image");
         }
         log(`Unauthenticated access attempt from user ${userId}`);
         return await ctx.reply("Incorrect password. Please try again.");
@@ -86,7 +86,7 @@ bot.on("message:text", async (ctx) => {
         log(`Image command received from user ${ctx.from.id}`);
         try {
             // Extract prompt from message
-            const prompt = text.replace("/generate", "").trim();
+            const prompt = text.replace("/image", "").trim();
             
             if (!prompt) {
                 log(`Empty prompt from user ${ctx.from.id}`);
