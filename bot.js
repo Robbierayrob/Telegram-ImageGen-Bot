@@ -34,7 +34,9 @@ bot.use(limit({
 // Add error handling
 bot.catch((err) => {
     console.error(`Error in bot:`, err);
-    ctx.reply("An error occurred. Please try again later.");
+    if (err.ctx) {
+        err.ctx.reply("An error occurred. Please try again later.");
+    }
 });
 
 log("Bot initialized successfully");
@@ -168,8 +170,8 @@ bot.on("callback_query:data", async (ctx) => {
         const filename = data.split("_").slice(1).join('_');
         log(`Share button clicked for filename: ${filename} by user ${userId}`);
         
-        const history = userHistory.get(userId);
-        if (!history) {
+        const history = userHistory.get(userId) || [];
+        if (history.length === 0) {
             log(`No history found for user ${userId}`);
             return await ctx.answerCallbackQuery("No image history found");
         }
