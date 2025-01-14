@@ -184,12 +184,17 @@ bot.on("callback_query:data", async (ctx) => {
         }
 
         try {
-            log(`Attempting to share image from path: ${entry.path}`);
-            await ctx.answerCallbackQuery("Use the share button to forward this image");
+            log(`Attempting to forward image from path: ${entry.path}`);
+            await ctx.answerCallbackQuery("Forwarding image...");
+            
+            // Forward the original message containing the image
+            await ctx.forwardMessage(ctx.chat.id, ctx.message.message_id);
+            
+            await ctx.answerCallbackQuery("Image forwarded successfully");
         } catch (error) {
-            log(`Error sharing image for user ${userId}: ${error.message}`);
+            log(`Error forwarding image for user ${userId}: ${error.message}`);
             console.error(error.stack);
-            await ctx.answerCallbackQuery("Failed to share image");
+            await ctx.answerCallbackQuery("Failed to forward image");
         }
     }
 });
