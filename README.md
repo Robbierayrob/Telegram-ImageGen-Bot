@@ -46,6 +46,8 @@ npm install
 node bot.js
 ```
 
+### 7. Create Folder called images in root
+
 ## TODO List for Improvements
 
 ### Core Features
